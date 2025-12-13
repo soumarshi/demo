@@ -1,4 +1,4 @@
-const handler = require("./cw-dashboard").handler;
+const handler = require("./index").handler;
 
 (async () => {
   await handler();
