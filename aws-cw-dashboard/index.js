@@ -215,6 +215,9 @@ function buildDeveloperWidgets(resources) {
   let y = 0;
   let col = 0;
 
+  buildAlbTlsNegotiationErrorsWidget(resources, 0, 0, 12, 6);
+  buildEcsClusterTasksWidget(resources.clusterName, 0, 6);
+
   // Per-service CPU/Mem (3 per row)
   for (const svcArn of resources.ecsServices) {
     const { clusterName, serviceName } = extractClusterAndService(svcArn);
@@ -355,6 +358,76 @@ function buildDeveloperWidgets(resources) {
 
   return widgets;
 }
+
+function buildEcsClusterTasksWidget(clusterName, x, y) {
+  return {
+    type: "metric",
+    x,
+    y,
+    width: 12,
+    height: 6,
+    properties: {
+      region: REGION,
+      view: "timeSeries",
+      period: 60,
+      stat: "Sum",
+      title: `${clusterName} – ECS Tasks (Running vs Desired)`,
+      metrics: [
+        [
+          {
+            id: "run",
+            label: "Running (sum across services)",
+            expression:
+              `SEARCH('{AWS/ECS,ClusterName,ServiceName} MetricName="RunningTaskCount" ClusterName="${clusterName}"', 'Sum', 60)`,
+          },
+        ],
+        [
+          {
+            id: "des",
+            label: "Desired (sum across services)",
+            expression:
+              `SEARCH('{AWS/ECS,ClusterName,ServiceName} MetricName="DesiredTaskCount" ClusterName="${clusterName}"', 'Sum', 60)`,
+          },
+        ],
+      ],
+    },
+  };
+}
+
+
+function buildAlbTlsNegotiationErrorsWidget(resources, x, y, width = 12, height = 6) {
+  const metrics = [];
+
+  if (resources.albs.length > 0) {
+    for (const albArn of resources.albs) {
+      const lbDim = extractAlbDimension(albArn);
+
+      metrics.push([
+        "AWS/ApplicationELB",
+        "ClientTLSNegotiationErrorCount",
+        "LoadBalancer",
+        lbDim,
+      ]);
+    }
+
+    return {
+      type: "metric",
+      x,
+      y,
+      width,
+      height,
+      properties: {
+        region: REGION,
+        view: "timeSeries",
+        period: 60,
+        stat: "Sum",
+        title: `ALB Client TLS Negotiation Errors`,
+        metrics,
+      },
+    };
+  }
+}
+
 
 /** -------------------- Dashboard push -------------------- */
 
