@@ -215,8 +215,9 @@ function buildDeveloperWidgets(resources) {
   let y = 0;
   let col = 0;
 
-  buildAlbTlsNegotiationErrorsWidget(resources, 0, 0, 12, 6);
-  buildEcsClusterTasksWidget(resources.clusterName, 0, 6);
+  const tlsWidget = buildAlbTlsNegotiationErrorsWidget(resources, 0, 0, 12, 6);
+  widgets.push(tlsWidget);
+  widgets.push(buildEcsClusterTasksWidget(resources.clusterName, 0, 6));
 
   // Per-service CPU/Mem (3 per row)
   for (const svcArn of resources.ecsServices) {
@@ -355,7 +356,10 @@ function buildDeveloperWidgets(resources) {
       },
     });
   }
-
+  if (resources.albs.length > 0) {
+    widgets.push(buildAlbRequestsWidget(resources.clusterName, resources.albs, 0, y, 12, 6));
+    y += 6;
+  }
   return widgets;
 }
 
@@ -464,5 +468,36 @@ function extractClusterAndService(serviceArn) {
   return {
     clusterName: parts[1] || "unknown-cluster",
     serviceName: parts[2] || "unknown-service",
+  };
+}
+
+function buildAlbRequestsWidget(clusterName, albArns, x, y, width = 12, height = 6) {
+  const metrics = [];
+
+  for (const albArn of albArns) {
+    const lbDim = extractAlbDimension(albArn);
+
+    metrics.push([
+      "AWS/ApplicationELB",
+      "RequestCount",
+      "LoadBalancer",
+      lbDim,
+    ]);
+  }
+
+  return {
+    type: "metric",
+    x,
+    y,
+    width,
+    height,
+    properties: {
+      region: REGION,
+      view: "timeSeries",
+      period: 60,
+      stat: "Sum",
+      title: `${clusterName} – ALB Requests`,
+      metrics,
+    },
   };
 }
